@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import sys
+from scipy.interpolate import CubicSpline, UnivariateSpline
 
 
 class PhasePlot:
@@ -12,7 +13,7 @@ class PhasePlot:
     def __init__(self, root) -> None:
         """Initialization of a phase plot class"""
         self.root = root
-        self.root.title = 'Phase Plot'
+        self.root.title('Phase Plot')
         self.root.geometry()
 
         self.file_name = sys.argv[1]
@@ -51,21 +52,94 @@ class PhasePlot:
         return temp1, temp2
 
 
-    def show_periods_main_window(self):
+    def show_periods_main_window(self) -> None:
+        tk.Label(self.I_frame, text='I-band').grid(column=0, row=0)
         for which_per, entry in enumerate(self.periods_I):
-            tk.Button(self.I_frame, text='Phase').grid(column=0, row=which_per, padx=10)
-            tk.Label(self.I_frame, text=str(1./entry)).grid(column=1, row=which_per)
+            tk.Button(self.I_frame, text='Phase',
+                      command=lambda period=1./entry: self.show_phase_plot(period)).grid(column=0,
+                                                                                             row=which_per+1,
+                                                                                             padx=10)
+            tk.Label(self.I_frame, text=str(1./entry)).grid(column=1, row=which_per+1)
 
+        tk.Label(self.V_frame, text='V-band').grid(column=0, row=0)
         for which_per, entry in enumerate(self.periods_V):
-            tk.Button(self.V_frame, text='Phase 2').grid(column=0, row=which_per, padx=10)
-            tk.Label(self.V_frame, text=str(1./entry)).grid(column=1, row=which_per)
+            tk.Button(self.V_frame, text='Phase',
+                      command=lambda period=1./entry: self.show_phase_plot(period)).grid(column=0,
+                                                                                              row=which_per+1,
+                                                                                              padx=10)
+            tk.Label(self.V_frame, text=str(1./entry)).grid(column=1, row=which_per+1)
+
+    def show_phase_plot(self, period: float) -> None:
+        popup = tk.Toplevel()
+
+        self.fig1, self.ax1 = plt.subplots(figsize=(6, 4), tight_layout=True)
+        self.canvas1 = FigureCanvasTkAgg(self.fig1, master=popup)
+        self.canvas1.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1, pady=10)
+
+        self.fig2, self.ax2 = plt.subplots(figsize=(6, 4), tight_layout=True)
+        self.canvas2 = FigureCanvasTkAgg(self.fig2, master=popup)
+        self.canvas2.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1, pady=10)
+
+        print(period)
+
+        # phases, y = PhasePlot.get_epoch(self.data_I[0], self.data_I[1], period)
+        phases = (self.data_V[0] / period) % 1.0
+        y = self.data_V[1]
+
+        self.ax1.set_title(f"Phased V, period {period} d")
+        self.ax1.invert_yaxis()
+        self.ax1.scatter(phases, y, color='green')
+        self.ax1.scatter(phases + 1, y, color='green')
+        self.canvas1.draw()
+
+        # phases, y = PhasePlot.get_epoch(self.data_V[0], self.data_V[1], period)
+        phases = (self.data_I[0] / period) % 1.0
+        y = self.data_I[1]
+
+        self.ax2.set_title("Phased I")
+        self.ax2.invert_yaxis()
+        self.ax2.scatter(phases, y, color='red')
+        self.ax2.scatter(phases + 1, y, color='red')
+        self.canvas2.draw()
+
+
+
+    @staticmethod
+    def get_epoch(x, y, period):
+        # Compute phases
+        phases = (np.array(x) / period) % 1.0
+
+        # Sort phases and corresponding y values
+        sorted_indices = np.argsort(phases)
+        sorted_phases = phases[sorted_indices]
+        sorted_y = np.array(y)[sorted_indices]
+
+        # Fit a spline to the sorted data
+        spline = UnivariateSpline(sorted_phases, sorted_y, s=1)
+
+        # Generate a dense phase array for the spline
+        dense_phase = np.linspace(0, 1, 1000)
+        smooth_y = spline(dense_phase)
+
+
+        # Find the phase corresponding to the minimum of the spline fit
+        min_index_smooth = np.argmin(smooth_y)
+        min_phase_smooth = dense_phase[min_index_smooth]
+
+        # Shift the original phases
+        shifted_phase = sorted_phases - min_phase_smooth
+
+        # Handle periodicity by wrapping the shifted phases within [0, 1)
+        wrapped_shifted_phase = np.mod(shifted_phase, 1.0)
+
+        return wrapped_shifted_phase, sorted_y
 
 
 
 def main():
     root = tk.Tk()
     phaseplot = PhasePlot(root)
-    root.geometry('600x800')
+    # root.geometry('600x800')
     root.mainloop()
 
 if __name__ == '__main__':
