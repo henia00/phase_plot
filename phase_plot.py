@@ -45,16 +45,20 @@ class PhasePlot:
 
     def read_freq_list(self, file: str):
         """Reads frequencies and epochs from file with a fit"""
-        f = open(file, 'r')
-        f.readline()
-        f.readline()
-        f.readline()
-        temp1 = []
-        temp2 = []
-        for line in f.readlines():
-            temp1.append(float(line.split()[0]))
-            temp2.append(float(line.split()[4]))
-        return temp1, temp2
+        try:
+            f = open(file, 'r')
+        except FileNotFoundError:
+            return [], []
+        else:
+            f.readline()
+            f.readline()
+            f.readline()
+            temp1 = []
+            temp2 = []
+            for line in f.readlines():
+                temp1.append(float(line.split()[0]))
+                temp2.append(float(line.split()[4]))
+            return temp1, temp2
 
 
     def show_periods_main_window(self) -> None:
