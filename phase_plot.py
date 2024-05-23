@@ -1,3 +1,5 @@
+import os
+import signal
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import numpy as np
@@ -137,10 +139,16 @@ class PhasePlot:
 
 
 def main():
+    def on_closing_window():
+        root.destroy()
+        sys.exit()
+
     root = tk.Tk()
-    phaseplot = PhasePlot(root)
+    app = PhasePlot(root)
     # root.geometry('600x800')
+    root.protocol("WM_DELETE_WINDOW", lambda: on_closing_window())
     root.mainloop()
+
 
 if __name__ == '__main__':
     main()
