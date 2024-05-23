@@ -4,7 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import sys
+
+from matplotlib.gridspec import GridSpec
 from scipy.interpolate import CubicSpline, UnivariateSpline
+
+
+
 
 
 class PhasePlot:
@@ -72,6 +77,8 @@ class PhasePlot:
     def show_phase_plot(self, period: float) -> None:
         popup = tk.Toplevel()
 
+        tk.Button(popup, text='Export', command=lambda x=period: self.export(x)).pack(side=tk.TOP)
+
         self.fig1, self.ax1 = plt.subplots(figsize=(6, 4), tight_layout=True)
         self.canvas1 = FigureCanvasTkAgg(self.fig1, master=popup)
         self.canvas1.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1, pady=10)
@@ -82,17 +89,15 @@ class PhasePlot:
 
         print(period)
 
-        # phases, y = PhasePlot.get_epoch(self.data_I[0], self.data_I[1], period)
         phases = (self.data_V[0] / period) % 1.0
         y = self.data_V[1]
 
-        self.ax1.set_title(f"Phased V, period {period} d")
+        self.ax1.set_title(f"Phased V, period {round(period,4)} d")
         self.ax1.invert_yaxis()
         self.ax1.scatter(phases, y, color='green')
         self.ax1.scatter(phases + 1, y, color='green')
         self.canvas1.draw()
 
-        # phases, y = PhasePlot.get_epoch(self.data_V[0], self.data_V[1], period)
         phases = (self.data_I[0] / period) % 1.0
         y = self.data_I[1]
 
@@ -102,38 +107,29 @@ class PhasePlot:
         self.ax2.scatter(phases + 1, y, color='red')
         self.canvas2.draw()
 
+    def export(self, period):
+        fig = plt.figure(figsize=(6,10))
+        gs = GridSpec(2, 1)
+        ax1 = fig.add_subplot(gs[0])
+        ax2 = fig.add_subplot(gs[1])
 
+        phases = (self.data_V[0] / period) % 1.0
+        y = self.data_V[1]
 
-    @staticmethod
-    def get_epoch(x, y, period):
-        # Compute phases
-        phases = (np.array(x) / period) % 1.0
+        ax1.set_title(f"Phased V, period {round(period, 4)} d")
+        ax1.invert_yaxis()
+        ax1.scatter(phases, y, color='green')
+        ax1.scatter(phases + 1, y, color='green')
 
-        # Sort phases and corresponding y values
-        sorted_indices = np.argsort(phases)
-        sorted_phases = phases[sorted_indices]
-        sorted_y = np.array(y)[sorted_indices]
+        phases = (self.data_I[0] / period) % 1.0
+        y = self.data_I[1]
 
-        # Fit a spline to the sorted data
-        spline = UnivariateSpline(sorted_phases, sorted_y, s=1)
+        ax2.set_title("Phased I")
+        ax2.invert_yaxis()
+        ax2.scatter(phases, y, color='red')
+        ax2.scatter(phases + 1, y, color='red')
 
-        # Generate a dense phase array for the spline
-        dense_phase = np.linspace(0, 1, 1000)
-        smooth_y = spline(dense_phase)
-
-
-        # Find the phase corresponding to the minimum of the spline fit
-        min_index_smooth = np.argmin(smooth_y)
-        min_phase_smooth = dense_phase[min_index_smooth]
-
-        # Shift the original phases
-        shifted_phase = sorted_phases - min_phase_smooth
-
-        # Handle periodicity by wrapping the shifted phases within [0, 1)
-        wrapped_shifted_phase = np.mod(shifted_phase, 1.0)
-
-        return wrapped_shifted_phase, sorted_y
-
+        plt.savefig(f"{self.file_name}_{str(round(period,4))}.png", bbox_inches='tight')
 
 
 def main():
